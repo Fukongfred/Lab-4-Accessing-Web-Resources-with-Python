@@ -1,10 +1,29 @@
-from supabase import create_client, Client
+import psycopg2
 
-url: str = "DATABASE_URL"
-key: str = "your_anon_public_key"
-supabase: Client = create_client(url, key)
+class Database:
+    def __init__(self, url):
+        self.connection = psycopg2.connect(url)
+        self.cursor = self.connection.cursor()
 
-# Assuming you've already parsed titles and prices
-for title, price in books:
-    data = {"title": title, "price": price}
-    supabase.table('books').insert(data).execute()
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.connection.commit()
+        self.cursor.close()
+        self.connection.close()
+
+    def create_table(self):
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS books (
+            id SERIAL PRIMARY KEY,
+            name TEXT,
+            description TEXT,
+            price TEXT,
+            rating TEXT
+        )
+        ''')
+
+    def insert_book(self, book):
+        sql = '''INSERT INTO books (name, description, price, rating) VALUES (%s, %s, %s, %s)'''
+        self.cursor.execute(sql, (book['name'], book['description'], book['price'], book['rating']))
